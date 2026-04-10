@@ -249,8 +249,8 @@ function renderRaw(conversations) {
     html += `<div class="conv-body">`;
     html += `<div class="conv-overview">${escHtml(overview)}</div>`;
     if (segs.length > 0) {
-      html += `<div class="conv-transcript-toggle" onclick="event.stopPropagation();this.nextElementSibling.classList.toggle('show');this.textContent=this.textContent==='▶ 会話ログを表示'?'▼ 会話ログを閉じる':'▶ 会話ログを表示'">▶ 会話ログを表示</div>`;
-      html += `<div class="conv-transcript">`;
+      html += `<div class="conv-transcript-toggle" onclick="event.stopPropagation();this.nextElementSibling.classList.toggle('show');this.textContent=this.textContent.startsWith('▶')?'▼ 会話ログを閉じる':'▶ 会話ログを表示'">▼ 会話ログを閉じる</div>`;
+      html += `<div class="conv-transcript show">`;
       for (const seg of segs) {
         const speaker = seg.speaker_name || ('Speaker ' + seg.speaker_id);
         const isUser = speaker === 'User' || seg.speaker_id === 0;
