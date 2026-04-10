@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Omi日次サマリー</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+  .container { max-width: 720px; margin: 0 auto; padding: 16px; }
+  header { padding: 24px 0 16px; border-bottom: 1px solid #2a2a2a; margin-bottom: 20px; }
+  header h1 { font-size: 1.4em; font-weight: 600; color: #fff; }
+  header p { font-size: 0.85em; color: #888; margin-top: 4px; }
+  .date-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .date-nav button { background: #1a1a1a; border: 1px solid #333; color: #ccc; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9em; }
+  .date-nav button:hover { background: #252525; border-color: #555; }
+  .date-nav input[type="date"] { background: #1a1a1a; border: 1px solid #333; color: #e0e0e0; padding: 8px 12px; border-radius: 8px; font-size: 0.9em; }
+  .date-label { font-size: 1.1em; font-weight: 500; color: #fff; flex: 1; text-align: center; }
+  .loading { text-align: center; padding: 40px; color: #666; }
+  .error { text-align: center; padding: 40px; color: #666; }
+  .error .icon { font-size: 2em; margin-bottom: 8px; }
+  .summary { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .category { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .category h2 { font-size: 0.95em; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .category ul { list-style: none; padding: 0; }
+  .category li { padding: 6px 0; font-size: 0.9em; line-height: 1.5; color: #bbb; border-bottom: 1px solid #222; }
+  .category li:last-child { border-bottom: none; }
+  .category .empty { color: #555; font-style: italic; font-size: 0.85em; }
+  .cat-food h2 { color: #f59e0b; }
+  .cat-exercise h2 { color: #10b981; }
+  .cat-health h2 { color: #3b82f6; }
+  .cat-work h2 { color: #8b5cf6; }
+  .cat-family h2 { color: #ec4899; }
+  .cat-other h2 { color: #6b7280; }
+  .meta { text-align: center; font-size: 0.8em; color: #555; margin-top: 16px; padding-top: 16px; border-top: 1px solid #2a2a2a; }
+  .calorie-badge { display: inline-block; background: #f59e0b22; color: #f59e0b; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500; margin-left: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Omi日次サマリー</h1>
+    <p>Omiウェアラブルから自動整理された1日の記録</p>
+  </header>
+
+  <div class="date-nav">
+    <button id="prev">&larr;</button>
+    <input type="date" id="datePicker">
+    <span class="date-label" id="dateLabel"></span>
+    <button id="next">&rarr;</button>
+  </div>
+
+  <div id="content">
+    <div class="loading">読み込み中...</div>
+  </div>
+
+  <div class="meta" id="meta"></div>
+</div>
+
+<script>
+const REPO = 'johno-prog/omi-daily-summary';
+const BRANCH = 'main';
+const DAYS = ['日','月','火','水','木','金','土'];
+
+let currentDate = new Date();
+currentDate.setDate(currentDate.getDate() - 1); // default to yesterday
+
+const datePicker = document.getElementById('datePicker');
+const dateLabel = document.getElementById('dateLabel');
+const content = document.getElementById('content');
+const meta = document.getElementById('meta');
+
+function toDateStr(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function formatLabel(d) {
+  return `${d.getMonth()+1}/${d.getDate()} (${DAYS[d.getDay()]})`;
+}
+
+function setDate(d) {
+  currentDate = d;
+  datePicker.value = toDateStr(d);
+  dateLabel.textContent = formatLabel(d);
+  loadSummary(toDateStr(d));
+}
+
+document.getElementById('prev').onclick = () => {
+  const d = new Date(currentDate);
+  d.setDate(d.getDate() - 1);
+  setDate(d);
+};
+
+document.getElementById('next').onclick = () => {
+  const d = new Date(currentDate);
+  d.setDate(d.getDate() + 1);
+  setDate(d);
+};
+
+datePicker.onchange = () => {
+  setDate(new Date(datePicker.value + 'T00:00:00'));
+};
+
+async function loadSummary(dateStr) {
+  content.innerHTML = '<div class="loading">読み込み中...</div>';
+  meta.textContent = '';
+
+  const url = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/daily/${dateStr}.md`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      content.innerHTML = '<div class="error"><div class="icon">-</div>この日のデータはまだありません</div>';
+      return;
+    }
+    const md = await res.text();
+    renderSummary(md, dateStr);
+  } catch (e) {
+    content.innerHTML = '<div class="error"><div class="icon">!</div>読み込みエラー</div>';
+  }
+}
+
+function renderSummary(md, dateStr) {
+  const categories = [
+    { key: 'food', title: '食事', icon: '🍽', class: 'cat-food', pattern: /## 食事\n([\s\S]*?)(?=\n## |---|\n$)/ },
+    { key: 'exercise', title: '運動', icon: '🏃', class: 'cat-exercise', pattern: /## 運動\n([\s\S]*?)(?=\n## |---|\n$)/ },
+    { key: 'health', title: '健康', icon: '💊', class: 'cat-health', pattern: /## 健康\n([\s\S]*?)(?=\n## |---|\n$)/ },
+    { key: 'work', title: '仕事', icon: '💼', class: 'cat-work', pattern: /## 仕事\n([\s\S]*?)(?=\n## |---|\n$)/ },
+    { key: 'family', title: '家族', icon: '👨‍👩‍👦', class: 'cat-family', pattern: /## 家族\n([\s\S]*?)(?=\n## |---|\n$)/ },
+    { key: 'other', title: 'その他', icon: '📌', class: 'cat-other', pattern: /## その他\n([\s\S]*?)(?=\n## |---|\n$)/ },
+  ];
+
+  let html = '<div class="summary">';
+
+  for (const cat of categories) {
+    const match = md.match(cat.pattern);
+    const body = match ? match[1].trim() : '';
+    const lines = body.split('\n').filter(l => l.trim().startsWith('- '));
+    const isEmpty = lines.length === 0 || body.includes('記録なし');
+
+    html += `<div class="category ${cat.class}">`;
+    html += `<h2>${cat.icon} ${cat.title}`;
+
+    // Show calorie total for food
+    if (cat.key === 'food' && !isEmpty) {
+      const calMatch = body.match(/推定合計[:：]\s*約?([\d,]+)/);
+      if (calMatch) {
+        html += `<span class="calorie-badge">${calMatch[1]}kcal</span>`;
+      }
+    }
+    html += '</h2>';
+
+    if (isEmpty) {
+      html += '<div class="empty">（記録なし）</div>';
+    } else {
+      html += '<ul>';
+      for (const line of lines) {
+        html += `<li>${line.replace(/^-\s*/, '')}</li>`;
+      }
+      html += '</ul>';
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  content.innerHTML = html;
+
+  // Meta info
+  const countMatch = md.match(/Omi会話\s*(\d+)件/);
+  const genMatch = md.match(/生成日時[:：]\s*(.+)/);
+  let metaText = '';
+  if (countMatch) metaText += `元データ: Omi会話 ${countMatch[1]}件`;
+  if (genMatch) metaText += ` | 生成: ${genMatch[1]}`;
+  meta.textContent = metaText;
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') document.getElementById('prev').click();
+  if (e.key === 'ArrowRight') document.getElementById('next').click();
+});
+
+// Init
+setDate(currentDate);
+</script>
+</body>
+</html>
