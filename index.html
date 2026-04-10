@@ -39,6 +39,9 @@
   .cat-other h2 { color: #6b7280; }
   .meta { text-align: center; font-size: 0.8em; color: #555; margin-top: 16px; padding-top: 16px; border-top: 1px solid #2a2a2a; }
   .calorie-badge { display: inline-block; background: #f59e0b22; color: #f59e0b; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500; margin-left: 8px; }
+  .src-link { color: #555; font-size: 0.75em; cursor: pointer; text-decoration: none; margin-left: 4px; }
+  .src-link:hover { color: #3b82f6; }
+  .conv-card.highlight { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
 
   /* Raw conversation cards */
   .conv-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
@@ -309,7 +312,10 @@ function renderSummary(md) {
     } else {
       html += '<ul>';
       for (const line of lines) {
-        html += `<li>${escHtml(line.replace(/^-\s*/, ''))}</li>`;
+        let text = escHtml(line.replace(/^-\s*/, ''));
+        // Convert [↗ID] to clickable links
+        text = text.replace(/\[↗([a-f0-9]{8})\]/g, '<a class="src-link" onclick="jumpToRaw(\'$1\')" title="原文を表示">[↗]</a>');
+        html += `<li>${text}</li>`;
       }
       html += '</ul>';
     }
@@ -325,6 +331,31 @@ function renderSummary(md) {
   if (countMatch) metaText += `元データ: Omi会話 ${countMatch[1]}件`;
   if (genMatch) metaText += ` | 生成: ${genMatch[1]}`;
   meta.textContent = metaText;
+}
+
+// Jump to raw conversation by ID prefix
+function jumpToRaw(idPrefix) {
+  // Switch to raw tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('[data-tab="raw"]').classList.add('active');
+  currentTab = 'raw';
+  render();
+
+  // Find and highlight the matching card
+  setTimeout(() => {
+    const cards = document.querySelectorAll('.conv-card');
+    for (const card of cards) {
+      card.classList.remove('highlight');
+    }
+    if (!cachedJson) return;
+    const idx = cachedJson.findIndex(c => c.id.startsWith(idPrefix));
+    if (idx >= 0 && cards[idx]) {
+      const card = cards[idx];
+      card.classList.add('open', 'highlight');
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => card.classList.remove('highlight'), 3000);
+    }
+  }, 100);
 }
 
 // Keyboard navigation
