@@ -6,67 +6,67 @@
 <title>Omi日次サマリー</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
   .container { max-width: 720px; margin: 0 auto; padding: 16px; }
-  header { padding: 24px 0 16px; border-bottom: 1px solid #2a2a2a; margin-bottom: 20px; }
-  header h1 { font-size: 1.4em; font-weight: 600; color: #fff; }
+  header { padding: 24px 0 16px; border-bottom: 1px solid #ddd; margin-bottom: 20px; }
+  header h1 { font-size: 1.4em; font-weight: 600; color: #111; }
   header p { font-size: 0.85em; color: #888; margin-top: 4px; }
   .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
-  .tab { background: #1a1a1a; border: 1px solid #2a2a2a; color: #888; padding: 8px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 0.9em; transition: all 0.15s; }
-  .tab.active { background: #1f1f1f; border-bottom-color: #1f1f1f; color: #fff; }
-  .tab:hover:not(.active) { color: #bbb; }
+  .tab { background: #fff; border: 1px solid #ddd; color: #999; padding: 8px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 0.9em; transition: all 0.15s; }
+  .tab.active { background: #fff; border-bottom-color: #fff; color: #111; font-weight: 600; }
+  .tab:hover:not(.active) { color: #666; }
   .date-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-  .date-nav button { background: #1a1a1a; border: 1px solid #333; color: #ccc; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9em; }
-  .date-nav button:hover { background: #252525; border-color: #555; }
-  .date-nav input[type="date"] { background: #1a1a1a; border: 1px solid #333; color: #e0e0e0; padding: 8px 12px; border-radius: 8px; font-size: 0.9em; }
-  .date-label { font-size: 1.1em; font-weight: 500; color: #fff; flex: 1; text-align: center; }
-  .loading { text-align: center; padding: 40px; color: #666; }
-  .error { text-align: center; padding: 40px; color: #666; }
+  .date-nav button { background: #fff; border: 1px solid #ddd; color: #555; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9em; }
+  .date-nav button:hover { background: #eee; border-color: #bbb; }
+  .date-nav input[type="date"] { background: #fff; border: 1px solid #ddd; color: #333; padding: 8px 12px; border-radius: 8px; font-size: 0.9em; }
+  .date-label { font-size: 1.1em; font-weight: 500; color: #111; flex: 1; text-align: center; }
+  .loading { text-align: center; padding: 40px; color: #999; }
+  .error { text-align: center; padding: 40px; color: #999; }
   .error .icon { font-size: 2em; margin-bottom: 8px; }
   .summary, .raw-view { animation: fadeIn 0.2s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-  .category { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .category { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
   .category h2 { font-size: 0.95em; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
   .category ul { list-style: none; padding: 0; }
-  .category li { padding: 6px 0; font-size: 0.9em; line-height: 1.5; color: #bbb; border-bottom: 1px solid #222; }
+  .category li { padding: 6px 0; font-size: 0.9em; line-height: 1.5; color: #555; border-bottom: 1px solid #f0f0f0; }
   .category li:last-child { border-bottom: none; }
-  .category .empty { color: #555; font-style: italic; font-size: 0.85em; }
-  .cat-food h2 { color: #f59e0b; }
-  .cat-exercise h2 { color: #10b981; }
-  .cat-health h2 { color: #3b82f6; }
-  .cat-work h2 { color: #8b5cf6; }
-  .cat-family h2 { color: #ec4899; }
+  .category .empty { color: #bbb; font-style: italic; font-size: 0.85em; }
+  .cat-food h2 { color: #d97706; }
+  .cat-exercise h2 { color: #059669; }
+  .cat-health h2 { color: #2563eb; }
+  .cat-work h2 { color: #7c3aed; }
+  .cat-family h2 { color: #db2777; }
   .cat-other h2 { color: #6b7280; }
-  .meta { text-align: center; font-size: 0.8em; color: #555; margin-top: 16px; padding-top: 16px; border-top: 1px solid #2a2a2a; }
-  .calorie-badge { display: inline-block; background: #f59e0b22; color: #f59e0b; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500; margin-left: 8px; }
-  .src-link { color: #555; font-size: 0.75em; cursor: pointer; text-decoration: none; margin-left: 4px; }
-  .src-link:hover { color: #3b82f6; }
-  .conv-card.highlight { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+  .meta { text-align: center; font-size: 0.8em; color: #aaa; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e5e5; }
+  .calorie-badge { display: inline-block; background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500; margin-left: 8px; }
+  .src-link { color: #bbb; font-size: 0.75em; cursor: pointer; text-decoration: none; margin-left: 4px; }
+  .src-link:hover { color: #2563eb; }
+  .conv-card.highlight { border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb; }
 
   /* Raw conversation cards */
-  .conv-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+  .conv-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
   .conv-header { padding: 14px 16px; cursor: pointer; display: flex; align-items: flex-start; gap: 12px; }
-  .conv-header:hover { background: #1f1f1f; }
-  .conv-time { color: #888; font-size: 0.8em; white-space: nowrap; min-width: 42px; padding-top: 2px; }
+  .conv-header:hover { background: #fafafa; }
+  .conv-time { color: #999; font-size: 0.8em; white-space: nowrap; min-width: 42px; padding-top: 2px; }
   .conv-info { flex: 1; }
-  .conv-title { font-size: 0.9em; font-weight: 500; color: #e0e0e0; margin-bottom: 4px; }
-  .conv-cat { display: inline-block; font-size: 0.75em; padding: 1px 8px; border-radius: 4px; background: #ffffff10; color: #999; }
-  .conv-arrow { color: #555; font-size: 0.8em; padding-top: 2px; transition: transform 0.2s; }
+  .conv-title { font-size: 0.9em; font-weight: 500; color: #333; margin-bottom: 4px; }
+  .conv-cat { display: inline-block; font-size: 0.75em; padding: 1px 8px; border-radius: 4px; background: #f3f4f6; color: #666; }
+  .conv-arrow { color: #ccc; font-size: 0.8em; padding-top: 2px; transition: transform 0.2s; }
   .conv-card.open .conv-arrow { transform: rotate(90deg); }
   .conv-body { display: none; padding: 0 16px 16px; }
   .conv-card.open .conv-body { display: block; }
-  .conv-overview { font-size: 0.85em; line-height: 1.7; color: #aaa; white-space: pre-wrap; }
-  .conv-duration { font-size: 0.75em; color: #666; margin-top: 8px; }
-  .raw-count { font-size: 0.85em; color: #888; margin-bottom: 16px; }
-  .conv-transcript-toggle { font-size: 0.8em; color: #666; cursor: pointer; margin-top: 10px; padding: 6px 0; border-top: 1px solid #2a2a2a; }
-  .conv-transcript-toggle:hover { color: #999; }
-  .conv-transcript { display: none; margin-top: 8px; max-height: 400px; overflow-y: auto; padding: 8px; background: #111; border-radius: 8px; }
+  .conv-overview { font-size: 0.85em; line-height: 1.7; color: #666; white-space: pre-wrap; }
+  .conv-duration { font-size: 0.75em; color: #aaa; margin-top: 8px; }
+  .raw-count { font-size: 0.85em; color: #999; margin-bottom: 16px; }
+  .conv-transcript-toggle { font-size: 0.8em; color: #999; cursor: pointer; margin-top: 10px; padding: 6px 0; border-top: 1px solid #eee; }
+  .conv-transcript-toggle:hover { color: #666; }
+  .conv-transcript { display: none; margin-top: 8px; max-height: 400px; overflow-y: auto; padding: 8px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; }
   .conv-transcript.show { display: block; }
   .seg { padding: 3px 0; font-size: 0.82em; line-height: 1.5; }
   .seg-speaker { font-weight: 600; font-size: 0.75em; }
-  .seg-user .seg-speaker { color: #3b82f6; }
-  .seg-other .seg-speaker { color: #f59e0b; }
-  .seg-text { color: #aaa; }
+  .seg-user .seg-speaker { color: #2563eb; }
+  .seg-other .seg-speaker { color: #d97706; }
+  .seg-text { color: #555; }
 </style>
 </head>
 <body>
