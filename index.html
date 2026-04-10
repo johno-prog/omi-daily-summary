@@ -11,6 +11,10 @@
   header { padding: 24px 0 16px; border-bottom: 1px solid #2a2a2a; margin-bottom: 20px; }
   header h1 { font-size: 1.4em; font-weight: 600; color: #fff; }
   header p { font-size: 0.85em; color: #888; margin-top: 4px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .tab { background: #1a1a1a; border: 1px solid #2a2a2a; color: #888; padding: 8px 20px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 0.9em; transition: all 0.15s; }
+  .tab.active { background: #1f1f1f; border-bottom-color: #1f1f1f; color: #fff; }
+  .tab:hover:not(.active) { color: #bbb; }
   .date-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
   .date-nav button { background: #1a1a1a; border: 1px solid #333; color: #ccc; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9em; }
   .date-nav button:hover { background: #252525; border-color: #555; }
@@ -19,7 +23,7 @@
   .loading { text-align: center; padding: 40px; color: #666; }
   .error { text-align: center; padding: 40px; color: #666; }
   .error .icon { font-size: 2em; margin-bottom: 8px; }
-  .summary { animation: fadeIn 0.2s ease; }
+  .summary, .raw-view { animation: fadeIn 0.2s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   .category { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
   .category h2 { font-size: 0.95em; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
@@ -35,6 +39,22 @@
   .cat-other h2 { color: #6b7280; }
   .meta { text-align: center; font-size: 0.8em; color: #555; margin-top: 16px; padding-top: 16px; border-top: 1px solid #2a2a2a; }
   .calorie-badge { display: inline-block; background: #f59e0b22; color: #f59e0b; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500; margin-left: 8px; }
+
+  /* Raw conversation cards */
+  .conv-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+  .conv-header { padding: 14px 16px; cursor: pointer; display: flex; align-items: flex-start; gap: 12px; }
+  .conv-header:hover { background: #1f1f1f; }
+  .conv-time { color: #888; font-size: 0.8em; white-space: nowrap; min-width: 42px; padding-top: 2px; }
+  .conv-info { flex: 1; }
+  .conv-title { font-size: 0.9em; font-weight: 500; color: #e0e0e0; margin-bottom: 4px; }
+  .conv-cat { display: inline-block; font-size: 0.75em; padding: 1px 8px; border-radius: 4px; background: #ffffff10; color: #999; }
+  .conv-arrow { color: #555; font-size: 0.8em; padding-top: 2px; transition: transform 0.2s; }
+  .conv-card.open .conv-arrow { transform: rotate(90deg); }
+  .conv-body { display: none; padding: 0 16px 16px; }
+  .conv-card.open .conv-body { display: block; }
+  .conv-overview { font-size: 0.85em; line-height: 1.7; color: #aaa; white-space: pre-wrap; }
+  .conv-duration { font-size: 0.75em; color: #666; margin-top: 8px; }
+  .raw-count { font-size: 0.85em; color: #888; margin-bottom: 16px; }
 </style>
 </head>
 <body>
@@ -51,6 +71,11 @@
     <button id="next">&rarr;</button>
   </div>
 
+  <div class="tabs">
+    <div class="tab active" data-tab="summary">整理済み</div>
+    <div class="tab" data-tab="raw">Omi原文</div>
+  </div>
+
   <div id="content">
     <div class="loading">読み込み中...</div>
   </div>
@@ -64,7 +89,11 @@ const BRANCH = 'main';
 const DAYS = ['日','月','火','水','木','金','土'];
 
 let currentDate = new Date();
-currentDate.setDate(currentDate.getDate() - 1); // default to yesterday
+currentDate.setDate(currentDate.getDate() - 1);
+let currentTab = 'summary';
+let cachedMd = null;
+let cachedJson = null;
+let cachedDateStr = null;
 
 const datePicker = document.getElementById('datePicker');
 const dateLabel = document.getElementById('dateLabel');
@@ -72,7 +101,10 @@ const content = document.getElementById('content');
 const meta = document.getElementById('meta');
 
 function toDateStr(d) {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
 }
 
 function formatLabel(d) {
@@ -83,7 +115,10 @@ function setDate(d) {
   currentDate = d;
   datePicker.value = toDateStr(d);
   dateLabel.textContent = formatLabel(d);
-  loadSummary(toDateStr(d));
+  cachedMd = null;
+  cachedJson = null;
+  cachedDateStr = toDateStr(d);
+  loadData(cachedDateStr);
 }
 
 document.getElementById('prev').onclick = () => {
@@ -102,25 +137,112 @@ datePicker.onchange = () => {
   setDate(new Date(datePicker.value + 'T00:00:00'));
 };
 
-async function loadSummary(dateStr) {
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentTab = tab.dataset.tab;
+    render();
+  };
+});
+
+async function loadData(dateStr) {
   content.innerHTML = '<div class="loading">読み込み中...</div>';
   meta.textContent = '';
 
-  const url = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/daily/${dateStr}.md`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) {
-      content.innerHTML = '<div class="error"><div class="icon">-</div>この日のデータはまだありません</div>';
-      return;
+  const base = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/daily/${dateStr}`;
+  const [mdRes, jsonRes] = await Promise.all([
+    fetch(`${base}.md`).catch(() => null),
+    fetch(`${base}.json`).catch(() => null)
+  ]);
+
+  cachedMd = (mdRes && mdRes.ok) ? await mdRes.text() : null;
+  cachedJson = (jsonRes && jsonRes.ok) ? await jsonRes.json() : null;
+
+  if (!cachedMd && !cachedJson) {
+    content.innerHTML = '<div class="error"><div class="icon">-</div>この日のデータはまだありません</div>';
+    return;
+  }
+  render();
+}
+
+function render() {
+  if (currentTab === 'summary') {
+    if (cachedMd) {
+      renderSummary(cachedMd);
+    } else {
+      content.innerHTML = '<div class="error">整理済みデータはまだありません</div>';
     }
-    const md = await res.text();
-    renderSummary(md, dateStr);
-  } catch (e) {
-    content.innerHTML = '<div class="error"><div class="icon">!</div>読み込みエラー</div>';
+  } else {
+    if (cachedJson) {
+      renderRaw(cachedJson);
+    } else {
+      content.innerHTML = '<div class="error">Omi原文データはまだありません</div>';
+    }
   }
 }
 
-function renderSummary(md, dateStr) {
+function toJST(utcStr) {
+  const d = new Date(utcStr);
+  return d.toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function durationMin(start, end) {
+  const ms = new Date(end) - new Date(start);
+  return Math.round(ms / 60000);
+}
+
+const catColors = {
+  family: '#ec4899', health: '#3b82f6', work: '#8b5cf6', social: '#f59e0b',
+  technology: '#06b6d4', food: '#f59e0b', finance: '#10b981', business: '#8b5cf6',
+  real: '#6b7280', other: '#6b7280'
+};
+
+const catLabels = {
+  family: '家族', health: '健康', work: '仕事', social: '社交',
+  technology: '技術', food: '食事', finance: '金融', business: 'ビジネス',
+  real: '生活', other: 'その他'
+};
+
+function renderRaw(conversations) {
+  let html = `<div class="raw-view">`;
+  html += `<div class="raw-count">Omi会話 ${conversations.length}件（タップで展開）</div>`;
+
+  for (const c of conversations) {
+    const time = toJST(c.started_at);
+    const dur = durationMin(c.started_at, c.finished_at);
+    const color = catColors[c.category] || '#6b7280';
+    const label = catLabels[c.category] || c.category;
+
+    html += `<div class="conv-card" onclick="this.classList.toggle('open')">`;
+    html += `<div class="conv-header">`;
+    html += `<div class="conv-time">${time}</div>`;
+    html += `<div class="conv-info">`;
+    html += `<div class="conv-title">${escHtml(c.title)}</div>`;
+    html += `<span class="conv-cat" style="color:${color};border:1px solid ${color}33">${label}</span>`;
+    html += `</div>`;
+    html += `<div class="conv-arrow">&#9654;</div>`;
+    html += `</div>`;
+    html += `<div class="conv-body">`;
+    html += `<div class="conv-overview">${escHtml(c.overview)}</div>`;
+    html += `<div class="conv-duration">${dur}分間</div>`;
+    html += `</div>`;
+    html += `</div>`;
+  }
+
+  html += '</div>';
+  content.innerHTML = html;
+
+  const countMatch = cachedMd?.match(/Omi会話\s*(\d+)件/);
+  meta.textContent = `Omi原文 ${conversations.length}件`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderSummary(md) {
   const categories = [
     { key: 'food', title: '食事', icon: '🍽', class: 'cat-food', pattern: /## 食事\n([\s\S]*?)(?=\n## |---|\n$)/ },
     { key: 'exercise', title: '運動', icon: '🏃', class: 'cat-exercise', pattern: /## 運動\n([\s\S]*?)(?=\n## |---|\n$)/ },
@@ -141,7 +263,6 @@ function renderSummary(md, dateStr) {
     html += `<div class="category ${cat.class}">`;
     html += `<h2>${cat.icon} ${cat.title}`;
 
-    // Show calorie total for food
     if (cat.key === 'food' && !isEmpty) {
       const calMatch = body.match(/推定合計[:：]\s*約?([\d,]+)/);
       if (calMatch) {
@@ -155,7 +276,7 @@ function renderSummary(md, dateStr) {
     } else {
       html += '<ul>';
       for (const line of lines) {
-        html += `<li>${line.replace(/^-\s*/, '')}</li>`;
+        html += `<li>${escHtml(line.replace(/^-\s*/, ''))}</li>`;
       }
       html += '</ul>';
     }
@@ -165,7 +286,6 @@ function renderSummary(md, dateStr) {
   html += '</div>';
   content.innerHTML = html;
 
-  // Meta info
   const countMatch = md.match(/Omi会話\s*(\d+)件/);
   const genMatch = md.match(/生成日時[:：]\s*(.+)/);
   let metaText = '';
@@ -176,6 +296,7 @@ function renderSummary(md, dateStr) {
 
 // Keyboard navigation
 document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
   if (e.key === 'ArrowLeft') document.getElementById('prev').click();
   if (e.key === 'ArrowRight') document.getElementById('next').click();
 });
