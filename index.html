@@ -55,6 +55,15 @@
   .conv-overview { font-size: 0.85em; line-height: 1.7; color: #aaa; white-space: pre-wrap; }
   .conv-duration { font-size: 0.75em; color: #666; margin-top: 8px; }
   .raw-count { font-size: 0.85em; color: #888; margin-bottom: 16px; }
+  .conv-transcript-toggle { font-size: 0.8em; color: #666; cursor: pointer; margin-top: 10px; padding: 6px 0; border-top: 1px solid #2a2a2a; }
+  .conv-transcript-toggle:hover { color: #999; }
+  .conv-transcript { display: none; margin-top: 8px; max-height: 400px; overflow-y: auto; padding: 8px; background: #111; border-radius: 8px; }
+  .conv-transcript.show { display: block; }
+  .seg { padding: 3px 0; font-size: 0.82em; line-height: 1.5; }
+  .seg-speaker { font-weight: 600; font-size: 0.75em; }
+  .seg-user .seg-speaker { color: #3b82f6; }
+  .seg-other .seg-speaker { color: #f59e0b; }
+  .seg-text { color: #aaa; }
 </style>
 </head>
 <body>
@@ -88,7 +97,7 @@ const REPO = 'johno-prog/omi-daily-summary';
 const BRANCH = 'main';
 const DAYS = ['日','月','火','水','木','金','土'];
 
-let currentDate = new Date();
+let currentDate = todayJST();
 currentDate.setDate(currentDate.getDate() - 1);
 let currentTab = 'summary';
 let cachedMd = null;
@@ -109,6 +118,13 @@ function toDateStr(d) {
 
 function formatLabel(d) {
   return `${d.getMonth()+1}/${d.getDate()} (${DAYS[d.getDay()]})`;
+}
+
+// Get today in JST
+function todayJST() {
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 3600 * 1000);
+  return new Date(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate());
 }
 
 function setDate(d) {
@@ -210,22 +226,41 @@ function renderRaw(conversations) {
   html += `<div class="raw-count">Omi会話 ${conversations.length}件（タップで展開）</div>`;
 
   for (const c of conversations) {
+    const s = c.structured || {};
+    const title = s.title || c.title || '(無題)';
+    const overview = s.overview || c.overview || '';
+    const category = s.category || c.category || 'other';
     const time = toJST(c.started_at);
     const dur = durationMin(c.started_at, c.finished_at);
-    const color = catColors[c.category] || '#6b7280';
-    const label = catLabels[c.category] || c.category;
+    const color = catColors[category] || '#6b7280';
+    const label = catLabels[category] || category;
+    const segs = c.transcript_segments || [];
 
     html += `<div class="conv-card" onclick="this.classList.toggle('open')">`;
     html += `<div class="conv-header">`;
     html += `<div class="conv-time">${time}</div>`;
     html += `<div class="conv-info">`;
-    html += `<div class="conv-title">${escHtml(c.title)}</div>`;
+    html += `<div class="conv-title">${escHtml(title)}</div>`;
     html += `<span class="conv-cat" style="color:${color};border:1px solid ${color}33">${label}</span>`;
+    if (segs.length > 0) html += `<span class="conv-cat" style="margin-left:4px">${segs.length}発言</span>`;
     html += `</div>`;
     html += `<div class="conv-arrow">&#9654;</div>`;
     html += `</div>`;
     html += `<div class="conv-body">`;
-    html += `<div class="conv-overview">${escHtml(c.overview)}</div>`;
+    html += `<div class="conv-overview">${escHtml(overview)}</div>`;
+    if (segs.length > 0) {
+      html += `<div class="conv-transcript-toggle" onclick="event.stopPropagation();this.nextElementSibling.classList.toggle('show');this.textContent=this.textContent==='▶ 会話ログを表示'?'▼ 会話ログを閉じる':'▶ 会話ログを表示'">▶ 会話ログを表示</div>`;
+      html += `<div class="conv-transcript">`;
+      for (const seg of segs) {
+        const speaker = seg.speaker_name || ('Speaker ' + seg.speaker_id);
+        const isUser = speaker === 'User' || seg.speaker_id === 0;
+        html += `<div class="seg ${isUser ? 'seg-user' : 'seg-other'}">`;
+        html += `<span class="seg-speaker">${escHtml(speaker)}</span> `;
+        html += `<span class="seg-text">${escHtml(seg.text)}</span>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
     html += `<div class="conv-duration">${dur}分間</div>`;
     html += `</div>`;
     html += `</div>`;
@@ -233,8 +268,6 @@ function renderRaw(conversations) {
 
   html += '</div>';
   content.innerHTML = html;
-
-  const countMatch = cachedMd?.match(/Omi会話\s*(\d+)件/);
   meta.textContent = `Omi原文 ${conversations.length}件`;
 }
 
