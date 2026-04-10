@@ -31,9 +31,7 @@
   .category li { padding: 6px 0; font-size: 0.9em; line-height: 1.5; color: #555; border-bottom: 1px solid #f0f0f0; }
   .category li:last-child { border-bottom: none; }
   .category .empty { color: #bbb; font-style: italic; font-size: 0.85em; }
-  .cat-food h2 { color: #d97706; }
-  .cat-exercise h2 { color: #059669; }
-  .cat-health h2 { color: #2563eb; }
+  .cat-body h2 { color: #059669; }
   .cat-work h2 { color: #7c3aed; }
   .cat-family h2 { color: #db2777; }
   .cat-other h2 { color: #6b7280; }
@@ -280,9 +278,7 @@ function escHtml(s) {
 
 function renderSummary(md) {
   const categories = [
-    { key: 'food', title: '食事', icon: '🍽', class: 'cat-food', pattern: /## 食事\n([\s\S]*?)(?=\n## |---|\n$)/ },
-    { key: 'exercise', title: '運動', icon: '🏃', class: 'cat-exercise', pattern: /## 運動\n([\s\S]*?)(?=\n## |---|\n$)/ },
-    { key: 'health', title: '健康', icon: '💊', class: 'cat-health', pattern: /## 健康\n([\s\S]*?)(?=\n## |---|\n$)/ },
+    { key: 'body', title: '食事・運動・健康', icon: '🏃‍♂️', class: 'cat-body', pattern: null, merge: ['食事', '運動', '健康'] },
     { key: 'work', title: '仕事', icon: '💼', class: 'cat-work', pattern: /## 仕事\n([\s\S]*?)(?=\n## |---|\n$)/ },
     { key: 'family', title: '家族', icon: '👨‍👩‍👦', class: 'cat-family', pattern: /## 家族\n([\s\S]*?)(?=\n## |---|\n$)/ },
     { key: 'other', title: 'その他', icon: '📌', class: 'cat-other', pattern: /## その他\n([\s\S]*?)(?=\n## |---|\n$)/ },
@@ -291,16 +287,37 @@ function renderSummary(md) {
   let html = '<div class="summary">';
 
   for (const cat of categories) {
-    const match = md.match(cat.pattern);
-    const body = match ? match[1].trim() : '';
-    const lines = body.split('\n').filter(l => l.trim().startsWith('- '));
-    const isEmpty = lines.length === 0 || body.includes('記録なし');
+    let lines = [];
+    let isEmpty = true;
+    let calBody = '';
+
+    if (cat.merge) {
+      for (const name of cat.merge) {
+        const re = new RegExp('## ' + name + '\\n([\\s\\S]*?)(?=\\n## |---|\\n$)');
+        const m = md.match(re);
+        if (m) {
+          const section = m[1].trim();
+          const sectionLines = section.split('\n').filter(l => l.trim().startsWith('- '));
+          if (sectionLines.length > 0 && !section.includes('記録なし')) {
+            if (name === '食事') calBody = section;
+            lines.push(...sectionLines);
+          }
+        }
+      }
+      isEmpty = lines.length === 0;
+    } else {
+      const match = md.match(cat.pattern);
+      const body = match ? match[1].trim() : '';
+      calBody = body;
+      lines = body.split('\n').filter(l => l.trim().startsWith('- '));
+      isEmpty = lines.length === 0 || body.includes('記録なし');
+    }
 
     html += `<div class="category ${cat.class}">`;
     html += `<h2>${cat.icon} ${cat.title}`;
 
-    if (cat.key === 'food' && !isEmpty) {
-      const calMatch = body.match(/推定合計[:：]\s*約?([\d,]+)/);
+    if (cat.key === 'body' && !isEmpty) {
+      const calMatch = calBody.match(/推定合計[:：]\s*約?([\d,]+)/);
       if (calMatch) {
         html += `<span class="calorie-badge">${calMatch[1]}kcal</span>`;
       }
