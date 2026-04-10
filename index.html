@@ -39,8 +39,8 @@
   .cat-other h2 { color: #6b7280; }
   .meta { text-align: center; font-size: 0.8em; color: #aaa; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e5e5; }
   .calorie-badge { display: inline-block; background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500; margin-left: 8px; }
-  .src-link { color: #bbb; font-size: 0.75em; cursor: pointer; text-decoration: none; margin-left: 4px; }
-  .src-link:hover { color: #2563eb; }
+  .src-link { display: inline-block; background: #e0e7ff; color: #4f46e5; font-size: 0.7em; cursor: pointer; text-decoration: none; margin-left: 6px; padding: 1px 7px; border-radius: 4px; vertical-align: middle; font-weight: 500; }
+  .src-link:hover { background: #c7d2fe; color: #3730a3; }
   .conv-card.highlight { border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb; }
 
   /* Raw conversation cards */
@@ -314,7 +314,7 @@ function renderSummary(md) {
       for (const line of lines) {
         let text = escHtml(line.replace(/^-\s*/, ''));
         // Convert [↗ID] to clickable links
-        text = text.replace(/\[↗([a-f0-9]{8})\]/g, '<a class="src-link" onclick="jumpToRaw(\'$1\')" title="原文を表示">[↗]</a>');
+        text = text.replace(/\[↗([a-f0-9]{8})\]/g, '<a class="src-link" onclick="jumpToRaw(\'$1\')" title="原文を表示">原文</a>');
         html += `<li>${text}</li>`;
       }
       html += '</ul>';
